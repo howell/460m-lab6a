@@ -58,7 +58,7 @@ module button_fsm(iClk, iBtns, oCtrlState);
             end
 
             9: begin
-                oCtrlState = ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_ADD : `ST_IDLE;
+                oCtrlState = ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_TOP: `ST_IDLE;
             end
 
             10: begin
