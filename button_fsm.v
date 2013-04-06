@@ -14,6 +14,7 @@ module button_fsm(iClk, iBtns, oCtrlState);
     `define ST_INC 7
     `define ST_DEC 8
 
+    wire wClk_10ms;
     wire [3:0] wBtns;
 
     reg [3:0] rState, rNextState;
@@ -25,10 +26,12 @@ module button_fsm(iClk, iBtns, oCtrlState);
         oCtrlState = `ST_IDLE;
     end
 
-    debouncer d0(iClk, iBtns[0], wBtns[0]);
-    debouncer d1(iClk, iBtns[1], wBtns[1]);
-    debouncer d2(iClk, iBtns[2], wBtns[2]);
-    debouncer d3(iClk, iBtns[3], wBtns[3]);
+    clk_div debounce_clk(iClk, 25000, wClk_10ms);
+
+    debouncer d0(wClk_10ms, iBtns[0], wBtns[0]);
+    debouncer d1(wClk_10ms, iBtns[1], wBtns[1]);
+    debouncer d2(wClk_10ms, iBtns[2], wBtns[2]);
+    debouncer d3(wClk_10ms, iBtns[3], wBtns[3]);
 
     always @(posedge iClk) begin
         rState <= rNextState;
