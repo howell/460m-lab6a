@@ -78,7 +78,7 @@ module button_reader(iClk, iB0, iB1, iB2, iB3, oBtns);
             endcase
        end  
        else begin
-           rNBtns = 0;
+           rNBtns = `ST_IDLE;
        end  // if
     end // always
 
