@@ -1,20 +1,22 @@
-module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns, 
+module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns, 
                     iSwtchs, oLeds, oSegs, oAn);
-                    					  //, rDVR, rSPR, rDAR, rCurrent_State, rInput_State,
+                                        				  //, rDVR, rSPR, rDAR, rCurrent_State, rInput_State,
                     //rOperand_A, rOperand_B);
 
-    input iClk, iCs, iWe;
+    input clk;
     input [7:0] iData_Bus, iSwtchs;
     input [3:0] iBtns;  
 //    output [7:0] rDVR;
 //    output [6:0] rDAR, rSPR;
 //    input [4:0] rInput_State;
 //    output [4:0] rCurrent_State;
+    output [3:0] oAn;
     output [6:0] oAddr;
-    output [7:0] oData_Out_Ctrl;//, rOperand_A, rOperand_B;
-    output oLeds, oSegs, oAn;
+    output [7:0] oData_Out_Ctrl, oSegs, oLeds;//, rOperand_A, rOperand_B;
+    output oCs, oWe;
 
-    reg [4:0] rInput_State;
+    wire wClk_1ms;
+    wire [4:0] rInput_State;
     reg [7:0] rDVR, rDVR_Mux_Out, rALU_Out, rOperand_A_Mux_Out,
               rOperand_A, rOperand_B, rOperand_B_Mux_Out, 
               rData_Out_Ctrl_Mux_Out;
@@ -127,11 +129,19 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     `define STATE_DEC_DAR           5'd22
     `define STATE_ADD_DAR           5'd23
     `define MICROCODE_NEXT_STATE    4:0
+	 
+	 clk_div sevseg_clk(clk, 25000, wClk_1ms);
+	 button_fsm fsm(clk, iBtns, rInput_State);
+	 sevenseg_controller sevseg(4'h3, wClk_1ms, 0, 0, rDVR[7:4], rDVR[3:0], oAn, oSegs);
 
 
     assign oAddr = rAddr_Mux_Out;
     assign oData_Out_Ctrl = rData_Out_Ctrl_Mux_Out;
-
+	 assign oWe = rMicrocode[rCurrent_State][`MICROCODE_WE];
+	 assign oCs = rMicrocode[rCurrent_State][`MICROCODE_CS];
+	 assign oLeds[6:0] = rDAR;
+	 assign oLeds[7] = (rSPR == 7'h7F) ? 1 : 0;
+	 
     initial begin
         rCurrent_State = 0;
         rDVR = 8'hFF;
@@ -271,7 +281,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end
 
     /* SPR Mux */
-    always @(*) begin
+    always @(rCurrent_State, rSPR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_SPR_MUX_SELECT])
            `SPR_MUX_INIT: begin
                 rSPR_Mux_Out <= 7'h7F; 
@@ -283,12 +293,13 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
                 rSPR_Mux_Out <= rSPR + 1; 
            end
            default: begin
+			  
            end
        endcase
     end /* always */
 
     /* DAR Mux */
-    always @(*) begin
+    always @(rCurrent_State, rSPR, rDAR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_DAR_MUX_SELECT])
             `DAR_MUX_INIT: begin
                 rDAR_Mux_Out <= 7'h00;
@@ -308,7 +319,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* DVR Mux */
-    always @(*) begin
+    always @(rCurrent_State, iData_Bus, rALU_Out, iSwtchs) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_DVR_MUX_SELECT])
             `DVR_MUX_INIT: begin
                 rDVR_Mux_Out <= 7'h00;
@@ -328,7 +339,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Addr Mux */
-    always @(*) begin
+    always @(rCurrent_State, rSPR, rDAR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_ADDR_MUX_SELECT])
             `ADDR_MUX_SPR: begin
                 rAddr_Mux_Out <= rSPR;
@@ -342,7 +353,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Operand A Mux */
-    always @(*) begin
+    always @(rCurrent_State, rDVR, iData_Bus) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_OPERAND_A_MUX_SELECT])
             `OPERAND_A_MUX_DVR: begin
                 rOperand_A_Mux_Out <= rDVR;
@@ -356,7 +367,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Operand B Mux */
-    always @(*) begin
+    always @(rCurrent_State, rDVR, iData_Bus) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_OPERAND_B_MUX_SELECT])
             `OPERAND_B_MUX_DVR: begin
                 rOperand_B_Mux_Out <= rDVR;
@@ -370,7 +381,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* ALU */
-    always @(*) begin
+    always @(rCurrent_State, rOperand_A, rOperand_B) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_ALU_SELECT])
             `ALU_ADD: begin
                 rALU_Out <= rOperand_A + rOperand_B;
@@ -384,7 +395,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
     
     /* Data Out Mux */
-    always @(*) begin
+    always @(rCurrent_State, iSwtchs, rALU_Out) begin
        case(rMicrocode[rCurrent_State][`MICROCODE_DATA_OUT_CTRL_MUX_SELECT])
             `DATA_OUT_CTRL_MUX_VAL: begin
                 rData_Out_Ctrl_Mux_Out <= iSwtchs;
@@ -398,7 +409,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
     
     /* Next State Mux */
-    always @(*) begin
+    always @(rCurrent_State, rInput_State) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE_MUX])
             `NEXT_STATE_MUX_MICROCODE: begin
                 rNext_State_Mux_Out <= 
@@ -412,7 +423,7 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
         endcase
     end /* always */
 
-    always @(posedge iClk) begin
+    always @(posedge clk) begin
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_SPR]) begin
             rSPR <= rSPR_Mux_Out;
