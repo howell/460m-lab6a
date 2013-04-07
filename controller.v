@@ -1,18 +1,20 @@
 module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns, 
-                    iSwtchs, oLeds, oSegs, oAn, rDVR, rSPR, rDAR, rCurrent_State, rInput_State,
-                    rOperand_A, rOperand_B);
+                    iSwtchs, oLeds, oSegs, oAn);
+                    					  //, rDVR, rSPR, rDAR, rCurrent_State, rInput_State,
+                    //rOperand_A, rOperand_B);
 
     input iClk, iCs, iWe;
     input [7:0] iData_Bus, iSwtchs;
     input [3:0] iBtns;  
-    output [7:0] rDVR;
-    output [6:0] rDAR, rSPR;
-    input [4:0] rInput_State;
-    output [4:0] rCurrent_State;
+//    output [7:0] rDVR;
+//    output [6:0] rDAR, rSPR;
+//    input [4:0] rInput_State;
+//    output [4:0] rCurrent_State;
     output [6:0] oAddr;
-    output [7:0] oData_Out_Ctrl, rOperand_A, rOperand_B;
+    output [7:0] oData_Out_Ctrl;//, rOperand_A, rOperand_B;
     output oLeds, oSegs, oAn;
 
+    reg [4:0] rInput_State;
     reg [7:0] rDVR, rDVR_Mux_Out, rALU_Out, rOperand_A_Mux_Out,
               rOperand_A, rOperand_B, rOperand_B_Mux_Out, 
               rData_Out_Ctrl_Mux_Out;
