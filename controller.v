@@ -1,79 +1,271 @@
 module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns, 
-                    iSwtchs, oLeds, oSegs, oAn);
+                    iSwtchs, oLeds, oSegs, oAn, rDVR, rSPR, rDAR, rCurrent_State, rInput_State,
+                    rOperand_A, rOperand_B);
 
-    input iClk, iCs, iWe, iData_Bus, iSwtchs;
+    input iClk, iCs, iWe;
+    input [7:0] iData_Bus, iSwtchs;
     input [3:0] iBtns;  
-    output oAddr, oData_Out_Ctrl, oLeds, oSegs, oAn;
+    output [7:0] rDVR;
+    output [6:0] rDAR, rSPR;
+    input [4:0] rInput_State;
+    output [4:0] rCurrent_State;
+    output [6:0] oAddr;
+    output [7:0] oData_Out_Ctrl, rOperand_A, rOperand_B;
+    output oLeds, oSegs, oAn;
 
     reg [7:0] rDVR, rDVR_Mux_Out, rALU_Out, rOperand_A_Mux_Out,
-              rOperand_B_Mux_Out, rData_Out_Ctrl_Mux_Out;
+              rOperand_A, rOperand_B, rOperand_B_Mux_Out, 
+              rData_Out_Ctrl_Mux_Out;
     reg [6:0] rSPR, rDAR, rSPR_Mux_Out, rDAR_Mux_Out, rAddr_Mux_Out;
 
-    reg rCurrent_State, rInput_State, rNext_State_Mux_Out;
-    reg [9:0] rMicrocode [1:0];
-
+//    reg rCurrent_State, rInput_State, rNext_State_Mux_Out;
+    reg [4:0] rCurrent_State, rNext_State_Mux_Out;
+    reg [23:0] rMicrocode [23:0];
 
     /* SPR Mux Inputs */
-    `define SPR_MUX_INIT        0
-    `define SPR_MUX_SPR_SUB_ONE 1
-    `define SPR_MUX_SPR_ADD_ONE 2
-    `define MICROCODE_SPR_MUX_SELECT 1:0
-    `define MICROCODE_LD_SPR           2
+    `define SPR_MUX_INIT        2'd0
+    `define SPR_MUX_SPR_SUB_ONE 2'd1
+    `define SPR_MUX_SPR_ADD_ONE 2'd2
+    `define MICROCODE_SPR_MUX_SELECT 23:22
+
+    `define LD_SPR_DIS         1'd0
+    `define LD_SPR_EN          1'd1
+    `define MICROCODE_LD_SPR           21
 
     /* DAR Mux Select */
-    `define DAR_MUX_INIT        0
-    `define DAR_MUX_SPR_ADD_ONE 1
-    `define DAR_MUX_DAR_SUB_ONE 2
-    `define DAR_MUX_DAR_ADD_ONE 3
-    `define MICROCODE_DAR_MUX_SELECT 4:3
-    `define MICROCODE_LD_DAR           5
+    `define DAR_MUX_INIT        2'd0
+    `define DAR_MUX_SPR_ADD_ONE 2'd1
+    `define DAR_MUX_DAR_SUB_ONE 2'd2
+    `define DAR_MUX_DAR_ADD_ONE 2'd3
+    `define MICROCODE_DAR_MUX_SELECT 20:19
+
+    `define LD_DAR_DIS          1'd0
+    `define LD_DAR_EN           1'd1
+    `define MICROCODE_LD_DAR           18
 
     /* DVR Mux Select */
-    `define DVR_MUX_INIT    0 
-    `define DVR_MUX_DATA_IN 1
-    `define DVR_MUX_ALU_OUT 2
-    `define MICROCODE_DVR_MUX_SELECT 7:6 
-    `define MICROCODE_LD_DVR           8
+    `define DVR_MUX_INIT    2'd0 
+    `define DVR_MUX_DATA_IN 2'd1
+    `define DVR_MUX_ALU_OUT 2'd2
+    `define DVR_MUX_VAL     2'd3
+    `define MICROCODE_DVR_MUX_SELECT 17:16 
+
+    `define LD_DVR_DIS      1'd0
+    `define LD_DVR_EN       1'd1
+    `define MICROCODE_LD_DVR           15
 
     /* Addr Mux Select */
-    `define ADDR_MUX_SPR 0
-    `define ADDR_MUX_DAR 1
-    `define MICROCODE_ADDR_MUX_SELECT 9
+    `define ADDR_MUX_SPR 1'd0
+    `define ADDR_MUX_DAR 1'd1
+    `define MICROCODE_ADDR_MUX_SELECT 14
 
     /* Operand A Mux Select */
-    `define OPERAND_A_MUX_DVR     0
-    `define OPERAND_A_MUX_DATA_IN 1
-    `define MICROCODE_OPERAND_A_MUX_SELECT 10
+    `define OPERAND_A_MUX_DVR     1'd0
+    `define OPERAND_A_MUX_DATA_IN 1'd1
+    `define MICROCODE_OPERAND_A_MUX_SELECT 13
+
+    `define LD_OPERAND_A_DIS     1'd0
+    `define LD_OPERAND_A_EN      1'd1
+    `define MICROCODE_LD_OPERAND_A 12
 
     /* Operand B Mux Select */
-    `define OPERAND_B_MUX_DVR     0
-    `define OPERAND_B_MUX_DATA_IN 1
+    `define OPERAND_B_MUX_DVR     1'd0
+    `define OPERAND_B_MUX_DATA_IN 1'd1
     `define MICROCODE_OPERAND_B_MUX_SELECT 11
 
+    `define LD_OPERAND_B_DIS     1'd0
+    `define LD_OPERAND_B_EN      1'd1
+    `define MICROCODE_LD_OPERAND_B 10
+
     /* ALU Select */
-    `define ALU_ADD 0
-    `define ALU_SUB 1
-    `define MICROCODE_ALU_SELECT 12 
+    `define ALU_ADD 1'd0
+    `define ALU_SUB 1'd1
+    `define MICROCODE_ALU_SELECT 9 
 
     /* Data Out Mux */
-    `define DATA_OUT_CTRL_MUX_VAL 0
-    `define DATA_OUT_CTRL_MUX_ALU 1
-    `define MICROCODE_DATA_OUT_CTRL_MUX_SELECT 13
+    `define DATA_OUT_CTRL_MUX_VAL 1'd0
+    `define DATA_OUT_CTRL_MUX_ALU 1'd1
+    `define MICROCODE_DATA_OUT_CTRL_MUX_SELECT 8
 
     /* Next State Mux Select */
-    `define NEXT_STATE_MUX_MICROCODE   0 
-    `define NEXT_STATE_MUX_INPUT 1 
-    `define MICROCODE_NEXT_STATE_MUX 14
-    `define MICROCODE_NEXT_STATE 15 /* TODO */
+    `define NEXT_STATE_MUX_MICROCODE   1'd0 
+    `define NEXT_STATE_MUX_INPUT       1'd1 
+    `define MICROCODE_NEXT_STATE_MUX   7
 
-    `define MICROCODE_CS    16
-    `define MICROCODE_WE    17
+    `define CS_DIS          1'd0
+    `define CS_EN           1'd1
+    `define MICROCODE_CS    6
+
+    `define WE_DIS          1'd0 
+    `define WE_EN           1'd1
+    `define MICROCODE_WE    5
+
+    `define STATE_WAIT              5'd0
+    `define STATE_RST               5'd1
+    `define STATE_PUSH              5'd2
+    `define STATE_SPR_SPR_SUB_ONE   5'd3 
+    `define STATE_DAR_SPR_ADD_ONE   5'd4
+    `define STATE_REQUEST_DVR       5'd5
+    `define STATE_LOAD_DVR          5'd6
+    `define STATE_POP               5'd7
+    `define STATE_SUB_SPR_ADD_ONE_B 5'd8
+    `define STATE_SUB_REQUEST_B     5'd9
+    `define STATE_SUB_LOAD_B        5'd10
+    `define STATE_SUB_SPR_ADD_ONE_A 5'd11
+    `define STATE_SUB_REQUEST_A     5'd12
+    `define STATE_SUB_LOAD_A        5'd13
+    `define STATE_SUB_STORE         5'd14
+    `define STATE_ADD_SPR_ADD_ONE_B 5'd15
+    `define STATE_ADD_REQUEST_B     5'd16
+    `define STATE_ADD_LOAD_B        5'd17
+    `define STATE_ADD_SPR_ADD_ONE_A 5'd18
+    `define STATE_ADD_REQUEST_A     5'd19
+    `define STATE_ADD_LOAD_A        5'd20
+    `define STATE_ADD_STORE         5'd21
+    `define STATE_DEC_DAR           5'd22
+    `define STATE_ADD_DAR           5'd23
+    `define MICROCODE_NEXT_STATE    4:0
+
 
     assign oAddr = rAddr_Mux_Out;
-    assign oData_Out_Ctrl = rData_Out_Ctr_Mux_Out;
+    assign oData_Out_Ctrl = rData_Out_Ctrl_Mux_Out;
 
     initial begin
         rCurrent_State = 0;
+        rDVR = 8'hFF;
+        rDAR = 7'h7F;
+        rSPR = 7'h00;
+        rMicrocode[`STATE_WAIT] = {`SPR_MUX_INIT,`LD_SPR_DIS,`DAR_MUX_INIT,
+        `LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_INPUT,`CS_DIS,`WE_DIS,`STATE_WAIT};
+        rMicrocode[`STATE_RST] = {`SPR_MUX_INIT,`LD_SPR_EN,`DAR_MUX_INIT,
+        `LD_DAR_EN,`DVR_MUX_INIT,`LD_DVR_EN,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_WAIT};
+        rMicrocode[`STATE_PUSH] = {`SPR_MUX_INIT,`LD_SPR_DIS,`DAR_MUX_INIT,
+        `LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_EN,`STATE_SPR_SPR_SUB_ONE};
+        rMicrocode[`STATE_SPR_SPR_SUB_ONE] = {`SPR_MUX_SPR_SUB_ONE,
+        `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_DAR_SPR_ADD_ONE};
+        rMicrocode[`STATE_DAR_SPR_ADD_ONE] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_SPR_ADD_ONE,`LD_DAR_EN,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_REQUEST_DVR};
+        rMicrocode[`STATE_REQUEST_DVR] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+       `DAR_MUX_SPR_ADD_ONE,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+       `ADDR_MUX_DAR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+       `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+       `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,`STATE_LOAD_DVR};
+        rMicrocode[`STATE_LOAD_DVR] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_SPR_ADD_ONE,`LD_DAR_DIS,`DVR_MUX_DATA_IN,`LD_DVR_EN,
+        `ADDR_MUX_DAR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,
+        `STATE_WAIT};
+        rMicrocode[`STATE_POP] = {`SPR_MUX_SPR_ADD_ONE,`LD_SPR_EN,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_DAR_SPR_ADD_ONE};
+        rMicrocode[`STATE_SUB_SPR_ADD_ONE_B] = {`SPR_MUX_SPR_ADD_ONE,
+        `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_SUB_REQUEST_B};
+        rMicrocode[`STATE_SUB_REQUEST_B] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,`STATE_SUB_LOAD_B};
+        rMicrocode[`STATE_SUB_LOAD_B] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DATA_IN,
+        `LD_OPERAND_B_EN,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_SUB_SPR_ADD_ONE_A};
+        rMicrocode[`STATE_SUB_SPR_ADD_ONE_A] = {`SPR_MUX_SPR_ADD_ONE,
+        `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_SUB_REQUEST_A};
+        rMicrocode[`STATE_SUB_REQUEST_A] ={`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,`STATE_SUB_LOAD_A};
+        rMicrocode[`STATE_SUB_LOAD_A] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DATA_IN,`LD_OPERAND_A_EN,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_SUB_STORE};
+        rMicrocode[`STATE_SUB_STORE] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_ALU_OUT,`LD_DVR_EN,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_SUB,
+        `DATA_OUT_CTRL_MUX_ALU,`NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_EN,
+        `STATE_WAIT};
+        rMicrocode[`STATE_ADD_SPR_ADD_ONE_B] = {`SPR_MUX_SPR_ADD_ONE,
+        `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_ADD_REQUEST_B};
+        rMicrocode[`STATE_ADD_REQUEST_B] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,`STATE_ADD_LOAD_B};
+        rMicrocode[`STATE_ADD_LOAD_B] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DATA_IN,
+        `LD_OPERAND_B_EN,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_ADD_SPR_ADD_ONE_A};
+        rMicrocode[`STATE_ADD_SPR_ADD_ONE_A] = {`SPR_MUX_SPR_ADD_ONE,
+        `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_ADD_REQUEST_A};
+        rMicrocode[`STATE_ADD_REQUEST_A] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_DIS,`STATE_ADD_LOAD_A};
+        rMicrocode[`STATE_ADD_LOAD_A] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,`ADDR_MUX_SPR,
+        `OPERAND_A_MUX_DATA_IN,`LD_OPERAND_A_EN,`OPERAND_B_MUX_DVR,
+        `LD_OPERAND_B_DIS,`ALU_ADD,`DATA_OUT_CTRL_MUX_VAL,
+        `NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,`STATE_ADD_STORE};
+        rMicrocode[`STATE_ADD_STORE] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_ALU_OUT,`LD_DVR_EN,
+        `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_ALU,`NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_EN,
+        `STATE_WAIT};
+        rMicrocode[`STATE_DEC_DAR] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_DAR_SUB_ONE,`LD_DAR_EN,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_DAR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_REQUEST_DVR};
+        rMicrocode[`STATE_ADD_DAR] = {`SPR_MUX_INIT,`LD_SPR_DIS,
+        `DAR_MUX_DAR_ADD_ONE,`LD_DAR_EN,`DVR_MUX_INIT,`LD_DVR_DIS,
+        `ADDR_MUX_DAR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
+        `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
+        `DATA_OUT_CTRL_MUX_VAL,`NEXT_STATE_MUX_MICROCODE,`CS_DIS,`WE_DIS,
+        `STATE_REQUEST_DVR};
     end
 
     /* SPR Mux */
@@ -124,6 +316,9 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
             end
             `DVR_MUX_ALU_OUT: begin
                 rDVR_Mux_Out <= rALU_Out; 
+            end
+            `DVR_MUX_VAL: begin
+                rDVR_Mux_Out <= iSwtchs;
             end
             default: begin
             end
@@ -176,10 +371,10 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     always @(*) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_ALU_SELECT])
             `ALU_ADD: begin
-                rALU_Out <= rOperand_A_Mux_Out + rOperand_B_Mux_Out;
+                rALU_Out <= rOperand_A + rOperand_B;
             end
             `ALU_SUB: begin
-                rALU_Out <= rOperand_A_Mux_Out - rOperand_B_Mux_Out;
+                rALU_Out <= rOperand_A - rOperand_B;
             end
             default: begin
             end
@@ -235,7 +430,18 @@ module controller (iClk, iCs, iWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
         else begin
         end
 
-        
+        if(rMicrocode[rCurrent_State][`MICROCODE_LD_OPERAND_A]) begin
+            rOperand_A <= rOperand_A_Mux_Out;
+        end
+        else begin
+        end
+
+        if(rMicrocode[rCurrent_State][`MICROCODE_LD_OPERAND_B]) begin
+            rOperand_B <= rOperand_B_Mux_Out;
+        end
+        else begin
+        end
+
         rCurrent_State <= rNext_State_Mux_Out;
 
     end /* always */
