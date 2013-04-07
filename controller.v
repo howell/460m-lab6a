@@ -17,6 +17,16 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
 
     wire wClk_1ms;
     wire [4:0] rInput_State;
+    wire [6:0] wSPRp1, wSPRm1, wSPR_Mux_Out;
+    wire [6:0] wDARp1, wDARm1, wDAR_Mux_Out;
+    wire [7:0] wDVR_Mux_Out;
+    wire [6:0] wAddr_Mux_Out;
+    wire [7:0] wOperand_A_Mux_Out;
+    wire [7:0] wOperand_B_Mux_Out;
+    wire [7:0] wALU_Add, wALU_Sub, wALU_Out;
+    wire [7:0] wData_Out_Ctrl_Mux_Out;
+    wire [4:0] wNext_State_Mux_Out;
+
     reg [7:0] rDVR, rDVR_Mux_Out, rALU_Out, rOperand_A_Mux_Out,
               rOperand_A, rOperand_B, rOperand_B_Mux_Out, 
               rData_Out_Ctrl_Mux_Out;
@@ -280,7 +290,14 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
         `STATE_REQUEST_DVR};
     end
 
+    /* SPR Mux inputs */
+    assign wSPRp1 = rSPR + 1;
+    assign wSPRm1 = rSPR - 1;
     /* SPR Mux */
+    mux4_7 spr_mux(7'h7F, wSPRm1, wSPRp1, 0,
+                   rMicrocode[rCurrent_State][`MICROCODE_SPR_MUX_SELECT],
+                   wSPR_Mux_Out);
+    /*
     always @(rCurrent_State, rSPR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_SPR_MUX_SELECT])
            `SPR_MUX_INIT: begin
@@ -298,7 +315,14 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
        endcase
     end /* always */
 
+    /* DAR Mux inputs */
+    assign wDARp1 = rDAR + 1;
+    assign wDARm1 = rDAR - 1;
     /* DAR Mux */
+    mux4_7 dar_mux(7'h00, wSPRp1, wDARm1, wDARp1,
+                   rMicrocode[rCurrent_State][`MICROCODE_DAR_MUX_SELECT],
+                   wDAR_Mux_Out);
+    /*
     always @(rCurrent_State, rSPR, rDAR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_DAR_MUX_SELECT])
             `DAR_MUX_INIT: begin
@@ -318,11 +342,17 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
         endcase
     end /* always */
 
+    /* DVR Mux inputs */
+    
     /* DVR Mux */
+    mux4_8 dvr_mux(8'h00, iData_Bus, rALU_Out, iSwtchs,
+                   rMicrocode[rCurrent_State][`MICROCODE_DVR_MUX_SELECT],
+                   wDVR_Mux_Out);
+    /*
     always @(rCurrent_State, iData_Bus, rALU_Out, iSwtchs) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_DVR_MUX_SELECT])
             `DVR_MUX_INIT: begin
-                rDVR_Mux_Out <= 7'h00;
+                rDVR_Mux_Out <= 8'h00;
             end
             `DVR_MUX_DATA_IN: begin
                 rDVR_Mux_Out <= iData_Bus;
@@ -339,6 +369,10 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Addr Mux */
+    mux2_7 addr_mux(rSPR, rDAR,
+                    rMicrocode[rCurrent_State][`MICROCODE_ADDR_MUX_SELECT],
+                    wAddr_Mux_Out);
+    /*
     always @(rCurrent_State, rSPR, rDAR) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_ADDR_MUX_SELECT])
             `ADDR_MUX_SPR: begin
@@ -353,6 +387,10 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Operand A Mux */
+    mux2_8 opA_mux(rDVR, iData_Bus,
+                   rMicrocode[rCurrent_State][`MICROCODE_OPERAND_A_MUX_SELECT],
+                   wOperand_A_Mux_Out);
+    /*
     always @(rCurrent_State, rDVR, iData_Bus) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_OPERAND_A_MUX_SELECT])
             `OPERAND_A_MUX_DVR: begin
@@ -367,6 +405,10 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
 
     /* Operand B Mux */
+    mux2_8 opB_mux(rDVR, iData_Bus,
+                   rMicrocode[rCurrent_State][`MICROCODE_OPERAND_B_MUX_SELECT],
+                   wOperand_B_Mux_Out);
+    /*
     always @(rCurrent_State, rDVR, iData_Bus) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_OPERAND_B_MUX_SELECT])
             `OPERAND_B_MUX_DVR: begin
@@ -380,7 +422,14 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
         endcase
     end /* always */
 
+    /* ALU inputs */
+    assign wALU_Add = rOperand_A + rOperand_B;
+    assign wALU_Sub = rOperand_A - rOperand_B;
     /* ALU */
+    mux2_8 alu(wALU_Add, wALU_Sub,
+               rMicrocode[rCurrent_State][`MICROCODE_ALU_SELECT],
+               wALU_Out);
+    /*
     always @(rCurrent_State, rOperand_A, rOperand_B) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_ALU_SELECT])
             `ALU_ADD: begin
@@ -395,6 +444,10 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
     
     /* Data Out Mux */
+    mux2_8 dataOut_mux(iSwtchs, wALU_Out,
+                      rMicrocode[rCurrent_State][`MICROCODE_DATA_OUT_CTRL_MUX_SELECT],
+                      wData_Out_Ctrl_Mux_Out);
+    /*
     always @(rCurrent_State, iSwtchs, rALU_Out) begin
        case(rMicrocode[rCurrent_State][`MICROCODE_DATA_OUT_CTRL_MUX_SELECT])
             `DATA_OUT_CTRL_MUX_VAL: begin
@@ -409,6 +462,10 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     end /* always */
     
     /* Next State Mux */
+    mux2_5 nextState_Mux(rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE],
+                         rInput_State,
+                         rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE_MUX],
+                         wNext_State_Mux_Out);
     always @(rCurrent_State, rInput_State) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE_MUX])
             `NEXT_STATE_MUX_MICROCODE: begin
