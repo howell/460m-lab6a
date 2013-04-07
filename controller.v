@@ -27,13 +27,11 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     wire [7:0] wData_Out_Ctrl_Mux_Out;
     wire [4:0] wNext_State_Mux_Out;
 
-    reg [7:0] rDVR, rDVR_Mux_Out, rALU_Out, rOperand_A_Mux_Out,
-              rOperand_A, rOperand_B, rOperand_B_Mux_Out, 
-              rData_Out_Ctrl_Mux_Out;
-    reg [6:0] rSPR, rDAR, rSPR_Mux_Out, rDAR_Mux_Out, rAddr_Mux_Out;
+    reg [7:0] rDVR, rOperand_A, rOperand_B;
+    reg [6:0] rSPR, rDAR;
 
 //    reg rCurrent_State, rInput_State, rNext_State_Mux_Out;
-    reg [4:0] rCurrent_State, rNext_State_Mux_Out;
+    reg [4:0] rCurrent_State;
     reg [23:0] rMicrocode [23:0];
 
     /* SPR Mux Inputs */
@@ -145,8 +143,8 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
 	 sevenseg_controller sevseg(4'h3, wClk_1ms, 0, 0, rDVR[7:4], rDVR[3:0], oAn, oSegs);
 
 
-    assign oAddr = rAddr_Mux_Out;
-    assign oData_Out_Ctrl = rData_Out_Ctrl_Mux_Out;
+    assign oAddr = wAddr_Mux_Out;
+    assign oData_Out_Ctrl = wData_Out_Ctrl_Mux_Out;
 	 assign oWe = rMicrocode[rCurrent_State][`MICROCODE_WE];
 	 assign oCs = rMicrocode[rCurrent_State][`MICROCODE_CS];
 	 assign oLeds[6:0] = rDAR;
@@ -345,7 +343,7 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     /* DVR Mux inputs */
     
     /* DVR Mux */
-    mux4_8 dvr_mux(8'h00, iData_Bus, rALU_Out, iSwtchs,
+    mux4_8 dvr_mux(8'h00, iData_Bus, wALU_Out, iSwtchs,
                    rMicrocode[rCurrent_State][`MICROCODE_DVR_MUX_SELECT],
                    wDVR_Mux_Out);
     /*
@@ -466,6 +464,7 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
                          rInput_State,
                          rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE_MUX],
                          wNext_State_Mux_Out);
+    /*
     always @(rCurrent_State, rInput_State) begin
         case(rMicrocode[rCurrent_State][`MICROCODE_NEXT_STATE_MUX])
             `NEXT_STATE_MUX_MICROCODE: begin
@@ -483,36 +482,36 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus, oData_Out_Ctrl, iBtns,
     always @(posedge clk) begin
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_SPR]) begin
-            rSPR <= rSPR_Mux_Out;
+            rSPR <= wSPR_Mux_Out;
         end
         else begin
         end
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_DAR]) begin
-            rDAR <= rDAR_Mux_Out;
+            rDAR <= wDAR_Mux_Out;
         end
         else begin
         end
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_DVR]) begin
-            rDVR <= rDVR_Mux_Out;
+            rDVR <= wDVR_Mux_Out;
         end
         else begin
         end
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_OPERAND_A]) begin
-            rOperand_A <= rOperand_A_Mux_Out;
+            rOperand_A <= wOperand_A_Mux_Out;
         end
         else begin
         end
 
         if(rMicrocode[rCurrent_State][`MICROCODE_LD_OPERAND_B]) begin
-            rOperand_B <= rOperand_B_Mux_Out;
+            rOperand_B <= wOperand_B_Mux_Out;
         end
         else begin
         end
 
-        rCurrent_State <= rNext_State_Mux_Out;
+        rCurrent_State <= wNext_State_Mux_Out;
 
     end /* always */
 
