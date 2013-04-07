@@ -1,17 +1,15 @@
-module DFF(iClk, iD, oQ, oQN);
+module DFF(iClk, iD, oQ);
     input iClk, iD;
-    output oQ, oQN;
+    output oQ;
 
-    reg oQ, oQN;
+    reg oQ;
 
     initial begin
         oQ = 0;
-        oQN = 1;
     end // initial
 
     always @(posedge iClk) begin
         oQ <= iD;
-        oQN <= ~iD;
     end // always
 
 endmodule // module DFF

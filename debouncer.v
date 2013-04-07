@@ -4,10 +4,10 @@ module debouncer(iClk, iX, oB);
     input iClk, iX;
     output oB;
 
-    wire wQ0, wQN0, wQN1;
+    wire wQ0;
 
-    DFF FF0(iClk, iX, wQ0, wQN0);
-    DFF FF1(iClk, wQ0, oB, wQN1);
+    DFF FF0(iClk, iX, wQ0);
+    DFF FF1(iClk, wQ0, oB);
 
 //    assign oB = wQ1;
 

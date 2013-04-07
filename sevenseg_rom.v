@@ -47,7 +47,7 @@ module sevenseg_rom(HexVal, Out);
             end
 
             11: begin
-                tempOut <= ~(8'b11111110);
+                tempOut <= ~(8'b00111110);
             end
 
             12: begin
@@ -55,7 +55,7 @@ module sevenseg_rom(HexVal, Out);
             end
 
             13: begin
-                tempOut <= ~(8'b11111100);
+                tempOut <= ~(8'b01111010);
             end
 
             14: begin

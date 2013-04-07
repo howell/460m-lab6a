@@ -8,6 +8,7 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus,
     output [6:0] oAddr;
     output [7:0] oData_Out_Ctrl, oSegs, oLeds;
     output oCs, oWe;
+//    output [4:0] oNext_State;
 
     wire wClk_1ms;
     wire [4:0] rInput_State;
@@ -25,8 +26,6 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus,
     reg [7:0] rDVR, rOperand_A, rOperand_B;
     reg [6:0] rSPR, rDAR;
     reg [23:0] rMicroOp;
-
-    reg [4:0] rCurrent_State;
 	 
     `define MICROCODE_NEXT_STATE                    4:0
     `define MICROCODE_WE                            5
@@ -46,7 +45,7 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus,
     `define MICROCODE_LD_SPR                        21
     `define MICROCODE_SPR_MUX_SELECT                23:22
 
-	 clk_div sevseg_clk(clk, 25000, wClk_1ms);
+   clk_div sevseg_clk(clk, 25000, wClk_1ms);
 	 button_fsm fsm(clk, iBtns, rInput_State);
 	 sevenseg_controller sevseg(4'h3, wClk_1ms, 0, 0, 
                     rDVR[7:4], rDVR[3:0], oAn, oSegs);
@@ -55,15 +54,16 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus,
      assign oAddr = wAddr_Mux_Out;
      assign oData_Out_Ctrl = wData_Out_Ctrl_Mux_Out;
      assign oWe = rMicroOp[`MICROCODE_WE];
-     assign oCs = rMicroOp[`MICROCODE_CS];
+     assign oCs = 1'b1;
      assign oLeds[6:0] = rDAR;
      assign oLeds[7] = (rSPR == 7'h7F) ? 1 : 0;
+//     assign oNext_State = wNext_State_Mux_Out;
 	 
     initial begin
-        rCurrent_State = 0;
-        rDVR = 8'hFF;
-        rDAR = 7'h7F;
-        rSPR = 7'h00;
+        rDVR = 8'h00;
+        rDAR = 7'h00;
+        rSPR = 7'h7F;
+        rMicroOp = 23'd1;
     end
 
     /* SPR Mux inputs */
@@ -160,7 +160,6 @@ module controller (clk, oCs, oWe, oAddr, iData_Bus,
         else begin
         end
 
-        rCurrent_State <= wNext_State_Mux_Out; // TODO
         rMicroOp <= wNext_MicroOp;
 
     end /* always */

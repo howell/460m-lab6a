@@ -70,14 +70,21 @@ module microcode_rom(clk, iState, oMicroOp);
     `define WE_DIS          1'd0 
     `define WE_EN           1'd1
 
+    `define STATE_PUSH              5'd2
+    `define STATE_POP               5'd7
+	 `define STATE_ADD               `STATE_ADD_SPR_ADD_ONE_B
+	 `define STATE_SUBTRACT          `STATE_SUB_SPR_ADD_ONE_B
+	 `define STATE_CLEAR					`STATE_RST
+    `define STATE_TOP               `STATE_DAR_SPR_ADD_ONE
+	 `define STATE_DEC               `STATE_DEC_DAR
+	 `define STATE_INC					`STATE_ADD_DAR
+	 
     `define STATE_WAIT              5'd0
     `define STATE_RST               5'd1
-    `define STATE_PUSH              5'd2
     `define STATE_SPR_SPR_SUB_ONE   5'd3 
     `define STATE_DAR_SPR_ADD_ONE   5'd4
     `define STATE_REQUEST_DVR       5'd5
     `define STATE_LOAD_DVR          5'd6
-    `define STATE_POP               5'd7
     `define STATE_SUB_SPR_ADD_ONE_B 5'd8
     `define STATE_SUB_REQUEST_B     5'd9
     `define STATE_SUB_LOAD_B        5'd10
@@ -176,7 +183,7 @@ module microcode_rom(clk, iState, oMicroOp);
         `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
         `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_SUB,
         `DATA_OUT_CTRL_MUX_ALU,`NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_EN,
-        `STATE_WAIT};
+        `STATE_SPR_SPR_SUB_ONE};
         rMicrocode[`STATE_ADD_SPR_ADD_ONE_B] = {`SPR_MUX_SPR_ADD_ONE,
         `LD_SPR_EN,`DAR_MUX_INIT,`LD_DAR_DIS,`DVR_MUX_INIT,`LD_DVR_DIS,
         `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
@@ -214,7 +221,7 @@ module microcode_rom(clk, iState, oMicroOp);
         `ADDR_MUX_SPR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
         `OPERAND_B_MUX_DVR,`LD_OPERAND_B_DIS,`ALU_ADD,
         `DATA_OUT_CTRL_MUX_ALU,`NEXT_STATE_MUX_MICROCODE,`CS_EN,`WE_EN,
-        `STATE_WAIT};
+        `STATE_SPR_SPR_SUB_ONE};
         rMicrocode[`STATE_DEC_DAR] = {`SPR_MUX_INIT,`LD_SPR_DIS,
         `DAR_MUX_DAR_SUB_ONE,`LD_DAR_EN,`DVR_MUX_INIT,`LD_DVR_DIS,
         `ADDR_MUX_DAR,`OPERAND_A_MUX_DVR,`LD_OPERAND_A_DIS,
