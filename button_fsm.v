@@ -4,15 +4,15 @@ module button_fsm(iClk, iBtns, oCtrlState);
     output [4:0] oCtrlState;
 
     // ucode states for each command
-    `define ST_IDLE 0
-    `define ST_PSH 1
-    `define ST_POP 2
-    `define ST_ADD 3
-    `define ST_SUB 4
-    `define ST_TOP 5
-    `define ST_RST 6
-    `define ST_INC 7
-    `define ST_DEC 8
+    `define ST_IDLE 5'd0
+    `define ST_PSH 5'd1
+    `define ST_POP 5'd2
+    `define ST_ADD 5'd3
+    `define ST_SUB 5'd4
+    `define ST_TOP 5'd5
+    `define ST_RST 5'd6
+    `define ST_INC 5'd7
+    `define ST_DEC 5'd8
 
     wire wClk_10ms;
     wire [3:0] wBtns;
@@ -38,46 +38,46 @@ module button_fsm(iClk, iBtns, oCtrlState);
     end // always
 
     always @(rState, wBtns) begin
-        rNextState = wBtns;
+        rNextState <= wBtns;
         case (rState)
             0: begin
-                oCtrlState = `ST_IDLE;
+                oCtrlState <= `ST_IDLE;
             end
 
             1: begin
-                oCtrlState = (wBtns == 4'h0) ? `ST_PSH : `ST_IDLE;
+                oCtrlState <= (wBtns == 4'h0) ? `ST_PSH : `ST_IDLE;
             end
 
             2: begin
-                oCtrlState = (wBtns == 4'h0) ? `ST_POP : `ST_IDLE;
+                oCtrlState <= (wBtns == 4'h0) ? `ST_POP : `ST_IDLE;
             end
 
             5: begin
-                oCtrlState = ((wBtns == 4'h4) | (wBtns == 4'h0)) ? `ST_ADD : `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'h4) | (wBtns == 4'h0)) ? `ST_ADD : `ST_IDLE;
             end
 
             6: begin
-                oCtrlState = ((wBtns == 4'h4) | (wBtns == 4'h0)) ? `ST_SUB : `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'h4) | (wBtns == 4'h0)) ? `ST_SUB : `ST_IDLE;
             end
 
             9: begin
-                oCtrlState = ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_TOP: `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_TOP: `ST_IDLE;
             end
 
             10: begin
-                oCtrlState = ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_RST : `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'h8) | (wBtns == 4'h0)) ? `ST_RST : `ST_IDLE;
             end
 
             13: begin
-                oCtrlState = ((wBtns == 4'hC) | (wBtns == 4'h0)) ? `ST_INC : `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'hC) | (wBtns == 4'h0)) ? `ST_INC : `ST_IDLE;
             end
 
             14: begin
-                oCtrlState = ((wBtns == 4'hC) | (wBtns == 4'h0)) ? `ST_DEC : `ST_IDLE;
+                oCtrlState <= ((wBtns == 4'hC) | (wBtns == 4'h0)) ? `ST_DEC : `ST_IDLE;
             end
 
             default: begin
-                oCtrlState = `ST_IDLE;
+                oCtrlState <= `ST_IDLE;
             end
 
         endcase
